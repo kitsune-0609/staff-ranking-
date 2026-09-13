@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>スタッフランキングツール</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet">
+<style>
+/* フォント: Meiryo優先、Web環境はNoto Sans JP併用（引継ぎ書 1.2準拠） */
+:root{
+  /* TrustEffort Brand Colors — CRM引継ぎ書準拠 v1.0 */
+  --navy:      #003366;   /* メイン：見出し・主要ボタン・ロゴ */
+  --navy2:     #1A2B4C;   /* ダークネイビー：本文テキスト */
+  --sky:       #4A90E2;   /* アクセント：リンク・サブボタン・強調 */
+  --sky-light: #A8C8F0;
+  --pale:      #E8EEF7;   /* ペールスカイ：セクション背景・カード */
+  --orange:    #F39C12;   /* 警告・注目：NEW表示・警告メッセージ */
+  --green:     #27AE60;   /* 成功：完了表示・成功メッセージ */
+  --red:       #D32F2F;
+  --white:     #FFFFFF;
+  --text:      #1A2B4C;   /* ダークネイビー */
+  --muted:     #6B7A8D;
+  --border:    #D0D0D0;
+  --bg:        #F0F4FA;
+  /* Rank colors */
+  --gold:      #C9922A;
+  --gold-bg:   #FFF8E6;
+  --gold-bdr:  #E8C060;
+  --silver:    #7A8FA6;
+  --silver-bg: #F0F4F8;
+  --silver-bdr:#A8BED0;
+  --bronze:    #A0652A;
+  --bronze-bg: #FDF3EB;
+  --bronze-bdr:#D4956A;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Meiryo','メイリオ','Noto Sans JP',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ======= HEADER ======= */
+.site-header{
+  background:var(--white);
+  border-bottom:3px solid var(--navy);
+  padding:0;
+}
+.header-top{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 32px;
+  border-bottom:1px solid var(--border);
+}
+.logo-wrap img{height:40px;display:block;}
+.header-nav-info{
+  display:flex;flex-direction:column;align-items:flex-end;gap:4px;
+}
+.header-nav-info .doc-title{
+  font-size:11px;color:var(--muted);letter-spacing:.06em;
+}
+.header-nav-info .doc-meta{
+  font-size:11px;color:var(--muted);
+}
+
+/* Navy title band */
+.header-band{
+  background:var(--navy);
+  padding:18px 32px;
+  display:flex;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;gap:12px;
+}
+.header-band h1{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:clamp(22px,4vw,34px);
+  font-weight:900;
+  color:var(--white);
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+.header-chips{
+  display:flex;gap:8px;flex-wrap:wrap;
+}
+.hchip{
+  background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.25);
+  border-radius:20px;
+  padding:3px 12px;
+  font-size:11px;
+  color:rgba(255,255,255,.85);
+}
+.hchip strong{color:var(--white);}
+
+/* ======= MAIN ======= */
+.wrap{max-width:1100px;margin:0 auto;padding:28px 20px;}
+
+/* ======= UPLOAD BOX ======= */
+.upload-box{
+  background:var(--white);
+  border:2px dashed var(--sky);
+  border-radius:12px;
+  padding:18px 20px;
+  margin-bottom:20px;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  transition:border-color .18s, background .18s;
+}
+.upload-box.drag{background:var(--pale);border-color:var(--navy);}
+.upload-box .ub-icon{font-size:26px;flex-shrink:0;}
+.upload-box .ub-text{flex:1;min-width:220px;}
+.upload-box .ub-text strong{color:var(--navy);font-size:13px;display:block;margin-bottom:2px;}
+.upload-box .ub-text span{font-size:11px;color:var(--muted);}
+.ub-btn{
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:12px;font-weight:700;
+  padding:9px 18px;border-radius:6px;
+  border:1px solid var(--navy);
+  background:var(--navy);color:var(--white);
+  cursor:pointer;white-space:nowrap;
+}
+.ub-btn:hover{background:var(--sky);border-color:var(--sky);}
+.ub-status{width:100%;font-size:11px;margin-top:6px;}
+.ub-status.ok{color:var(--green);}
+.ub-status.err{color:var(--red);}
+
+/* ======= TABS ======= */
+.tabs{
+  display:flex;gap:6px;flex-wrap:wrap;
+  margin-bottom:24px;
+  background:var(--white);
+  padding:12px 16px;
+  border-radius:12px;
+  border:1px solid var(--border);
+  box-shadow:0 1px 4px rgba(0,51,102,.06);
+}
+.tb{
+  font-family:'Noto Sans JP',sans-serif;
+  font-size:12px;font-weight:700;
+  padding:7px 15px;
+  border-radius:6px;
+  border:1px solid var(--border);
+  background:var(--white);
+  color:var(--muted);
+  cursor:pointer;
+  transition:all .18s;
+  white-space:nowrap;
+}
+.tb:hover{background:var(--pale);border-color:var(--sky);color:var(--navy);}
+.tb.on{
+  background:var(--navy);
+  border-color:var(--navy);
+  color:var(--white);
+  box-shadow:0 2px 8px rgba(0,51,102,.3);
+}
+
+/* ======= PANELS ======= */
+.panel{display:none;}.panel.vis{display:block;}
+.phead{
+  text-align:center;
+  margin-bottom:20px;
+  padding:16px;
+  background:var(--white);
+  border-radius:12px;
+  border:1px solid var(--border);
+  border-top:4px solid var(--navy);
+  box-shadow:0 1px 4px rgba(0,51,102,.06);
+}
+.phead h2{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:24px;font-weight:900;
+  letter-spacing:.08em;text-transform:uppercase;
+  color:var(--navy);
+}
+.phead p{font-size:12px;color:var(--muted);margin-top:4px;}
+
+/* ======= PODIUM ======= */
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:12px;margin-bottom:20px;padding:0 4px;}
+
+.pc{
+  flex:1;max-width:300px;border-radius:12px;
+  padding:18px 16px;text-align:center;
+  animation:fu .45s ease both;
+  box-shadow:0 2px 12px rgba(0,0,0,.08);
+}
+.p1{background:var(--gold-bg);  border:2px solid var(--gold-bdr);}
+.p2{background:var(--silver-bg);border:2px solid var(--silver-bdr);}
+.p3{background:var(--bronze-bg);border:2px solid var(--bronze-bdr);}
+/* 表示人数が1〜2人のとき空スロットを非表示 */
+.pc-spacer{visibility:hidden;pointer-events:none;border:none!important;background:transparent!important;box-shadow:none!important;}
+
+/* Top line accent */
+.p1::before,.p2::before,.p3::before{
+  content:'';display:block;height:4px;
+  border-radius:8px 8px 0 0;
+  position:absolute;top:-2px;left:-2px;right:-2px;
+}
+.pc{position:relative;}
+.p1::before{background:var(--gold);}
+.p2::before{background:var(--silver);}
+.p3::before{background:var(--bronze);}
+
+.crown{font-size:20px;margin-bottom:4px;display:block;}
+.badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:32px;height:32px;border-radius:50%;
+  font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:900;
+  margin:0 auto 10px;
+}
+.p1 .badge{background:var(--gold);   color:var(--white);}
+.p2 .badge{background:var(--silver); color:var(--white);}
+.p3 .badge{background:var(--bronze); color:var(--white);}
+
+.p-store{font-size:10px;letter-spacing:.08em;color:var(--muted);margin-bottom:3px;text-transform:uppercase;}
+.p-name{font-weight:900;font-size:clamp(13px,2.2vw,16px);line-height:1.3;margin-bottom:6px;color:var(--navy);}
+.p-val{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:42px;font-weight:900;line-height:1;
+}
+.p1 .p-val{color:var(--gold);}
+.p2 .p-val{color:var(--silver);}
+.p3 .p-val{color:var(--bronze);}
+.p-unit{font-size:11px;color:var(--muted);margin-top:3px;}
+
+/* ======= LIST ======= */
+.rlist{display:flex;flex-direction:column;gap:6px;margin-bottom:36px;}
+.ri{
+  display:flex;align-items:center;gap:12px;
+  background:var(--white);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:11px 16px;
+  animation:fl .35s ease both;
+  transition:border-color .18s, box-shadow .18s;
+}
+.ri:hover{
+  border-color:var(--sky);
+  box-shadow:0 2px 8px rgba(91,192,235,.15);
+}
+.rn{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:22px;font-weight:900;
+  color:var(--border);
+  width:28px;text-align:center;flex-shrink:0;
+}
+.rinfo{flex:1;min-width:0;}
+.r-store{font-size:10px;color:var(--muted);letter-spacing:.04em;}
+.r-name{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--navy);}
+.rbar{height:3px;background:var(--pale);border-radius:2px;margin-top:5px;overflow:hidden;}
+.rfill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--sky),var(--navy));}
+.rv{
+  font-family:'Barlow Condensed',sans-serif;
+  font-size:24px;font-weight:900;text-align:right;flex-shrink:0;
+}
+.ru{font-size:10px;color:var(--muted);display:block;text-align:right;}
+
+/* Value colors by rank */
+.rv-1{color:var(--gold);}
+.rv-2{color:var(--silver);}
+.rv-3{color:var(--bronze);}
+.rv-n{color:var(--navy2);}
+
+/* ======= STORE CODE BADGE ======= */
+.store-code{display:inline-block;font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:3px;background:var(--navy);color:var(--white);vertical-align:middle;letter-spacing:.06em;font-family:'Barlow Condensed',sans-serif;}
+
+/* ======= ROLE BADGES — CRM RBAC 5段階準拠（引継ぎ書 2.6） ======= */
+.rb{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:5px;vertical-align:middle;letter-spacing:.04em;}
+/* executive: 役員以上 */
+.r-exec {background:#E8F0FF;color:var(--navy);  border:1px solid #B0C4E0;}
+/* manager: 店長 */
+.r-mgr  {background:#FDECEA;color:var(--red);   border:1px solid #F5B9B5;}
+/* deputy_manager: 副店長 */
+.r-sub  {background:#F3E8FF;color:#7B3F9E;      border:1px solid #D4A8F0;}
+/* エリアMGR */
+.r-am   {background:#E6F7FF;color:#0055AA;      border:1px solid var(--sky);}
+/* AD（アドバイザー）*/
+.r-ad   {background:#E0F4FD;color:#0077BB;      border:1px solid #90D4F5;}
+/* staff: 一般スタッフ */
+.r-gen  {background:var(--pale);color:var(--muted);border:1px solid var(--border);}
+/* partner: 外部パートナー（常勤業務委託・SYSP等）*/
+.r-biz  {background:#FFF5E6;color:#B06000;      border:1px solid #F0C080;}
+
+/* ======= TIED BADGE ======= */
+.tied{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:3px;margin-left:5px;vertical-align:middle;background:#FFF5E6;color:#8B4500;border:1px solid var(--orange);}
+
+/* ======= 途中経過バッジ（オレンジ：引継ぎ書1.1 警告・注目色） ======= */
+.interim-badge{display:inline-block;background:var(--orange);color:var(--white);font-size:11px;font-weight:700;padding:2px 12px;border-radius:4px;letter-spacing:.05em;margin-left:10px;vertical-align:middle;}
+
+/* ======= FOOTER ======= */
+footer{
+  background:var(--navy);
+  color:rgba(255,255,255,.6);
+  text-align:center;padding:16px 20px;
+  font-size:11px;letter-spacing:.06em;
+  margin-top:20px;
+}
+footer strong{color:rgba(255,255,255,.9);}
+
+/* ======= ANIMATIONS ======= */
+@keyframes fu{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fl{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
+.d1{animation-delay:.04s}.d2{animation-delay:.08s}.d3{animation-delay:.12s}.d4{animation-delay:.16s}
+.d5{animation-delay:.20s}.d6{animation-delay:.24s}.d7{animation-delay:.28s}.d8{animation-delay:.32s}
+.d9{animation-delay:.36s}.d10{animation-delay:.40s}.d11{animation-delay:.44s}.d12{animation-delay:.48s}
+
+@media(max-width:640px){
+  .header-band{padding:14px 20px;}
+  .header-top{padding:12px 20px;}
+  .podium{flex-wrap:wrap;}
+  .pc{min-width:140px;flex:1 1 140px;}
+  .p1{order:0;flex-basis:100%;max-width:100%;}
+  .p2{order:1;}.p3{order:2;}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="site-header">
+  <div class="header-top">
+    <div class="logo-wrap">
+      <!-- ここに会社ロゴ画像を挿入。不要なら<div class="logo-wrap">ごと削除可 -->
+    </div>
+  </div>
+  <div class="header-band">
+    <h1>📊 Staff Ranking — TEST</h1>
+    <div class="header-chips">
+      <span class="hchip">15名</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- TABS -->
+  <nav class="tabs">
+    <button class="tb on" onclick="sw('total-sales',this)">🏆 受講者ランキング</button>
+    <button class="tb" onclick="sw('unattended',this)">📋 未受講者一覧</button>
+  </nav>
+
+  <div id="p-total-sales" class="panel vis">
+    <div class="phead"><h2>🏆 受講者ランキング【料金プラン】</h2><p>毎週テスト 管理表2026・料金プラン欄のデータを反映</p></div>
+    <div id="rank-total-sales"></div>
+  </div>
+
+  <div id="p-unattended" class="panel">
+    <div class="phead"><h2>📋 未受講者一覧</h2><p>点数が未入力（空白）のスタッフ</p></div>
+    <div id="rank-unattended"></div>
+  </div>
+</div>
+
+<footer>
+  <strong>TrustEffort株式会社</strong> &nbsp;|&nbsp; selectSIM スタッフランキング【サンプルデータ】 &nbsp;|&nbsp; 社内資料・取扱注意
+</footer>
+
+<script>
+// 店舗略号マスタ — CRM引継ぎ書 付録準拠
+// 店舗略号マスタ（任意登録・上書き用） — 未登録の店舗は名称の先頭2文字を自動でバッジ表示
+const STORE_CODE={
+  'テスト店舗A':'TA',
+  'テスト店舗B':'TB',
+  'テスト店舗C':'TC',
+};
+
+// role → CRM RBAC分類マッピング
+// executive: 役員以上 / manager: 店長 / deputy_manager: 副店長
+// staff: 一般スタッフ / partner: 外部パートナー
+// ポイント・役職・個人目標は日報タブから取得（引継ぎ書準拠）
+// 目標達成率 = 個人累計pt ÷ 個人目標（goalフィールド）
+// ★テストデータ（架空の店舗・スタッフ名を使用。実データではありません）
+// attended: 点数が空白ではなく入力済みかどうか（true=受講者 / false=未受講者）
+const STAFF=[
+  {store:"", name:"亀野　龍馬", role:"", sales:7, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"近藤　真司", role:"", sales:9, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"沼田　彩", role:"", sales:8, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"難波　勇多", role:"", sales:5, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"水町　颯斗", role:"", sales:10, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"山下　実央", role:"", sales:3, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"木本　裕介", role:"", sales:7, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"村井　佑哉", role:"", sales:6, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"熊谷　丈一郎", role:"", sales:7, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"藤上　貴士", role:"", sales:10, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"渡辺　翔", role:"", sales:7, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:true},
+  {store:"", name:"金林　金平", role:"", sales:0, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:false},
+  {store:"", name:"和賀　弘晃", role:"", sales:0, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:false},
+  {store:"", name:"原口　ひかる", role:"", sales:0, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:false},
+  {store:"", name:"東　さつき", role:"", sales:0, pts:0, goal:0, target:0, fixed:0, nuro:0, mac:0, attended:false},
+];
+
+// 役職 → CRM RBAC バッジ分類（引継ぎ書 2.6準拠）
+function rbadge(r){
+  if(!r)return '';
+  let cls='r-gen';
+  if(r==='取締役')                              cls='r-exec';
+  else if(r==='店長')                           cls='r-mgr';
+  else if(r==='副店長')                         cls='r-sub';
+  else if(r==='エリアMGR'||r==='AM')            cls='r-am';
+  else if(r.startsWith('AD'))                   cls='r-ad';
+  else if(r.includes('業務委託')||r.includes('SP')) cls='r-biz';
+  return `<span class="rb ${cls}">${r}</span>`;
+}
+
+// 店舗略号バッジ
+function storeCode(store){
+  // STORE_CODEに手動登録があればそれを優先、なければ店舗名の先頭2文字を自動でバッジ化
+  const code=STORE_CODE[store]||(store?store.substring(0,2):'');
+  return code?`<span class="store-code">${code}</span>`:'';
+}
+
+// 店舗名が空の場合は店舗表示行を出さない
+function storeLine(store,cls){
+  if(!store) return '';
+  return `<div class="${cls}">${store}${storeCode(store)}</div>`;
+}
+
+const rvCls=r=>r===1?'rv-1':r===2?'rv-2':r===3?'rv-3':'rv-n';
+
+function buildPanel(id,key,unit,fmt){
+  const el=document.getElementById('rank-'+id);
+  if(!el)return;
+  const gv=s=>key==='ratio'?(s.goal>0?s.pts/s.goal*100:0):s[key];
+
+  // 受講者（点数が入力済み＝attended!==false）のみをランキング対象にする
+  const attendedStaff=STAFF.filter(s=>s.attended!==false);
+  const sorted=[...attendedStaff].map(s=>({...s,val:gv(s)})).sort((a,b)=>b.val-a.val);
+  sorted.forEach((s,i)=>{
+    s.rank=(i===0||s.val!==sorted[i-1].val)?i+1:sorted[i-1].rank;
+  });
+  const tieMap={};
+  sorted.forEach(s=>{tieMap[s.rank]=(tieMap[s.rank]||0)+1;});
+  const tied=s=>tieMap[s.rank]>1?'<span class="tied">同率</span>':'';
+
+  const maxVal=sorted[0]?.val||1;
+  const podItems=sorted.filter(s=>s.val>0).slice(0,3);
+
+  // PODIUM — 位置ベースで構築（左:2位 / 中:1位 / 右:3位）
+  // CSS order を使わず配列順で左中右を制御。
+  // 人数が1〜2人の時は透明スペーサーで埋め、1位を必ず中央に固定。
+  const PAD=['18px','30px','12px']; // 左・中・右のpadding-top
+  let slots;
+  if(podItems.length>=3)       slots=[podItems[1],podItems[0],podItems[2]];
+  else if(podItems.length===2) slots=[podItems[1],podItems[0],null];
+  else if(podItems.length===1) slots=[null,podItems[0],null];
+  else                         slots=[];
+
+  let h='<div class="podium">';
+  slots.forEach((s,posIdx)=>{
+    if(!s){h+=`<div class="pc pc-spacer"></div>`;return;}
+    const dv=fmt?fmt(s.val):(Number.isInteger(s.val)?s.val:s.val.toFixed(2));
+    h+=`<div class="pc p${Math.min(s.rank,3)}" style="padding-top:${PAD[posIdx]}">
+      ${posIdx===1?'<span class="crown">👑</span>':''}
+      <div class="badge">${s.rank}</div>
+      ${storeLine(s.store,'p-store')}
+      <div class="p-name">${s.name}${rbadge(s.role)}${tied(s)}</div>
+      <div class="p-val">${dv}</div>
+      <div class="p-unit">${unit}</div>
+    </div>`;
+  });
+  h+='</div>';
+
+  // LIST
+  h+='<div class="rlist">';
+  sorted.slice(3).forEach((s,i)=>{
+    const pct=maxVal>0?s.val/maxVal*100:0;
+    const dv=fmt?fmt(s.val):(Number.isInteger(s.val)?s.val:s.val.toFixed(2));
+    h+=`<div class="ri d${Math.min(i+1,12)}">
+      <div class="rn">${s.rank}</div>
+      <div class="rinfo">
+        ${storeLine(s.store,'r-store')}
+        <div class="r-name">${s.name}${rbadge(s.role)}${tied(s)}</div>
+      </div>
+      <div>
+        <div class="rv ${rvCls(s.rank)}">${dv}</div>
+        <div class="ru">${unit}</div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+// ======= 未受講者一覧（点数が空白のスタッフ） =======
+function buildUnattendedPanel(){
+  const el=document.getElementById('rank-unattended');
+  if(!el)return;
+  const list=STAFF.filter(s=>s.attended===false)
+    .sort((a,b)=>a.store.localeCompare(b.store,'ja')||a.name.localeCompare(b.name,'ja'));
+
+  if(!list.length){
+    el.innerHTML='<div style="text-align:center;color:var(--muted);padding:40px 0;font-size:13px;">未受講者はいません</div>';
+    return;
+  }
+
+  let h='<div class="rlist">';
+  list.forEach((s,i)=>{
+    h+=`<div class="ri d${Math.min(i+1,12)}">
+      <div class="rn">-</div>
+      <div class="rinfo">
+        ${storeLine(s.store,'r-store')}
+        <div class="r-name">${s.name}${rbadge(s.role)}</div>
+      </div>
+      <div>
+        <div class="rv rv-n" style="font-size:14px;">未受講</div>
+      </div>
+    </div>`;
+  });
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+function sw(id,btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('vis'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('p-'+id).classList.add('vis');
+  btn.classList.add('on');
+}
+
+// ======= EXCEL/CSVアップロード処理 =======
+// 期待する列（1行目ヘッダー）：店舗 / 氏名 / 役職（任意） / 点数
+function handleFile(file){
+  const status=document.getElementById('ubStatus');
+  status.className='ub-status';
+  status.textContent='読み込み中…';
+
+  const reader=new FileReader();
+  reader.onload=(e)=>{
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array'});
+      const wsName=wb.SheetNames[0];
+      const ws=wb.Sheets[wsName];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      if(!rows.length) throw new Error('データが見つかりません');
+
+      const header=rows[0].map(h=>String(h).trim());
+      const idx=cands=>header.findIndex(h=>cands.includes(h));
+      const iStore=idx(['店舗','店舗名','店']);
+      const iName =idx(['氏名','名前','スタッフ名']);
+      const iRole =idx(['役職','ポジション','役職名']);
+      const iVal  =idx(['点数','ポイント','件数','総販','売上','pt','sales']);
+
+      if(iStore<0||iName<0||iVal<0){
+        throw new Error('必須列（店舗・氏名・点数）が見つかりません。1行目のヘッダーをご確認ください。');
+      }
+
+      const newStaff=[];
+      for(let r=1;r<rows.length;r++){
+        const row=rows[r];
+        if(!row||row.length===0) continue;
+        const store=String(row[iStore]??'').trim();
+        const name =String(row[iName]??'').trim();
+        if(!store||!name) continue;
+        const role=iRole>=0?String(row[iRole]??'').trim():'';
+        const rawVal=row[iVal];
+        // 点数セルが空白（未入力）なら未受講者として扱う
+        const attended=!(rawVal===undefined||rawVal===null||String(rawVal).trim()==='');
+        const val=attended?(Number(rawVal)||0):0;
+        newStaff.push({store,name,role,sales:val,pts:0,goal:0,target:0,fixed:0,nuro:0,mac:0,attended});
+      }
+      if(!newStaff.length) throw new Error('有効なデータ行が見つかりませんでした。');
+
+      STAFF.length=0;
+      STAFF.push(...newStaff);
+
+      const storeCount=new Set(newStaff.map(s=>s.store)).size;
+      const attendedCount=newStaff.filter(s=>s.attended).length;
+      const unattendedCount=newStaff.length-attendedCount;
+      document.querySelector('#p-total-sales .phead p').textContent=
+        `月間件数（全商材合計）※「${wsName}」シートより ${storeCount}店舗 ${newStaff.length}名分を読込（受講者${attendedCount}名）`;
+      document.querySelector('#p-unattended .phead p').textContent=
+        `点数が未入力（空白）のスタッフ　※未受講者${unattendedCount}名`;
+
+      buildPanel('total-sales','sales','点',null);
+      buildUnattendedPanel();
+
+      status.className='ub-status ok';
+      status.textContent=`✓ 読込完了：${storeCount}店舗 ${newStaff.length}名分のデータをランキングに反映しました（受講者${attendedCount}名／未受講者${unattendedCount}名）`;
+    }catch(err){
+      status.className='ub-status err';
+      status.textContent='✗ 読込エラー：'+err.message;
+    }
+  };
+  reader.onerror=()=>{
+    status.className='ub-status err';
+    status.textContent='✗ ファイルの読み込みに失敗しました';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function initUpload(){
+  const fileInput=document.getElementById('fileInput');
+  const box=document.getElementById('uploadBox');
+  fileInput.addEventListener('change',e=>{
+    if(e.target.files&&e.target.files[0]) handleFile(e.target.files[0]);
+  });
+  ['dragover','dragenter'].forEach(ev=>box.addEventListener(ev,e=>{e.preventDefault();box.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>box.addEventListener(ev,e=>{e.preventDefault();box.classList.remove('drag');}));
+  box.addEventListener('drop',e=>{
+    if(e.dataTransfer.files&&e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  buildPanel('total-sales','sales','点',null);
+  buildUnattendedPanel();
+});
+</script>
+</body>
+</html>
